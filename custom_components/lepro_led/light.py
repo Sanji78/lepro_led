@@ -449,6 +449,8 @@ class LeproLedLight(LightEntity):
     def _parse_d50(self, d50_str):
         """Parse grouped d50 string for effect and segment colours and primary color"""
         try:
+            _LOGGER.debug("Parsing d50: %s", d50_str)
+
             # Reset to defaults
             self._effect = self.EFFECT_SOLID
             self._speed = 50
@@ -469,56 +471,69 @@ class LeproLedLight(LightEntity):
             else:
                 f_idx = d50_str.find('F21000', p_idx)
                 if f_idx == -1:
-                    raise ValueError("Missing F21000 after P1000 block")
-
-                # block contains ascii num_groups + colors_hex
-                block = d50_str[p_idx + len('P1000') : f_idx]
-
-                # we must determine how many ASCII digits form num_groups (k)
-                num_groups = None
-                k_used = None
-                for k in range(1, 4):  # try 1..3 digits for safety
-                    if len(block) >= k and block[:k].isdigit():
-                        candidate = int(block[:k])
-                        if len(block) - k == 6 * candidate:
-                            num_groups = candidate
-                            k_used = k
-                            break
-
-                if num_groups is None:
-                    raise ValueError("Could not deduce num_groups / colors length from d50")
-
-                colors_hex = block[k_used:]
-                colors = [colors_hex[i*6:(i+1)*6] for i in range(num_groups)]
-                colors_rgb = [(int(c[0:2], 16), int(c[2:4], 16), int(c[4:6], 16)) for c in colors]
-
-                # read second num_groups with the same digit-length k_used
-                num_groups2_str = d50_str[f_idx + 6 : f_idx + 6 + k_used]
-                num_groups2 = int(num_groups2_str) if num_groups2_str.isdigit() else None
-
-                # read lengths: next num_groups * 4 hex chars
-                lengths_hex = d50_str[f_idx + 6 + k_used : f_idx + 6 + k_used + num_groups * 4]
-                if len(lengths_hex) < num_groups * 4:
-                    raise ValueError("Not enough length hex data in d50")
-
-                lengths = [int(lengths_hex[i*4:(i+1)*4], 16) for i in range(num_groups)]
-
-                # expand to 25 segments
-                segs = []
-                for (col, cnt) in zip(colors_rgb, lengths):
-                    segs.extend([col] * cnt)
-
-                # normalize to 25 segments
-                if len(segs) < 25:
-                    if segs:
-                        segs.extend([segs[-1]] * (25 - len(segs)))
+                    # Try alternative format without F21000 - extract first color after P1000
+                    _LOGGER.debug("d50 format without F21000, trying simple color extraction")
+                    color_match = re.search(r'P1000\d*([0-9A-Fa-f]{6})', d50_str)
+                    if color_match:
+                        hex_color = color_match.group(1)
+                        r = int(hex_color[0:2], 16)
+                        g = int(hex_color[2:4], 16)
+                        b = int(hex_color[4:6], 16)
+                        self._segment_colors = [(r, g, b)] * 25
+                        self._attr_rgb_color = (r, g, b)
+                        _LOGGER.debug("Extracted color from simple format: RGB(%d, %d, %d)", r, g, b)
                     else:
-                        segs = [(255,255,255)] * 25
-                elif len(segs) > 25:
-                    segs = segs[:25]
+                        _LOGGER.warning("Could not parse d50 format: %s", d50_str[:100])
+                else:
+                    # Full grouped format with F21000
+                    # block contains ascii num_groups + colors_hex
+                    block = d50_str[p_idx + len('P1000') : f_idx]
 
-                self._segment_colors = segs
-                self._attr_rgb_color = self._segment_colors[0]
+                    # we must determine how many ASCII digits form num_groups (k)
+                    num_groups = None
+                    k_used = None
+                    for k in range(1, 4):  # try 1..3 digits for safety
+                        if len(block) >= k and block[:k].isdigit():
+                            candidate = int(block[:k])
+                            if len(block) - k == 6 * candidate:
+                                num_groups = candidate
+                                k_used = k
+                                break
+
+                    if num_groups is None:
+                        raise ValueError("Could not deduce num_groups / colors length from d50")
+
+                    colors_hex = block[k_used:]
+                    colors = [colors_hex[i*6:(i+1)*6] for i in range(num_groups)]
+                    colors_rgb = [(int(c[0:2], 16), int(c[2:4], 16), int(c[4:6], 16)) for c in colors]
+
+                    # read second num_groups with the same digit-length k_used
+                    num_groups2_str = d50_str[f_idx + 6 : f_idx + 6 + k_used]
+                    num_groups2 = int(num_groups2_str) if num_groups2_str.isdigit() else None
+
+                    # read lengths: next num_groups * 4 hex chars
+                    lengths_hex = d50_str[f_idx + 6 + k_used : f_idx + 6 + k_used + num_groups * 4]
+                    if len(lengths_hex) < num_groups * 4:
+                        raise ValueError("Not enough length hex data in d50")
+
+                    lengths = [int(lengths_hex[i*4:(i+1)*4], 16) for i in range(num_groups)]
+
+                    # expand to 25 segments
+                    segs = []
+                    for (col, cnt) in zip(colors_rgb, lengths):
+                        segs.extend([col] * cnt)
+
+                    # normalize to 25 segments
+                    if len(segs) < 25:
+                        if segs:
+                            segs.extend([segs[-1]] * (25 - len(segs)))
+                        else:
+                            segs = [(255,255,255)] * 25
+                    elif len(segs) > 25:
+                        segs = segs[:25]
+
+                    self._segment_colors = segs
+                    self._attr_rgb_color = self._segment_colors[0]
 
             # Parse effect and speed as before
             if "000640000E1" in d50_str:
