@@ -9,7 +9,7 @@ import os
 import hashlib
 import re
 import numpy as np
-from .const import DOMAIN, LOGIN_URL, FAMILY_LIST_URL, USER_PROFILE_URL, DEVICE_LIST_URL, SWITCH_API_URL
+from .const import DOMAIN, REGIONS, LOGIN_PATH, FAMILY_LIST_PATH, USER_PROFILE_PATH, DEVICE_LIST_PATH, SWITCH_API_PATH
 from aiomqtt import Client, MqttError
 import aiofiles
 from homeassistant.core import callback
@@ -108,7 +108,7 @@ class MQTTClientWrapper:
             except asyncio.CancelledError:
                 pass
 
-async def async_login(session, account, password, mac, language="it", fcm_token=""):
+async def async_login(session, account, password, mac, login_url, api_host, language="it", fcm_token=""):
     """Perform login and return bearer token."""
     timestamp = str(int(time.time()))
     payload = {
@@ -126,7 +126,7 @@ async def async_login(session, account, password, mac, language="it", fcm_token=
         "Device-Model": "custom_integration",
         "Device-System": "custom",
         "GMT": "+0",
-        "Host": "api-eu-iot.lepro.com",
+        "Host": api_host,
         "Language": language,
         "Platform": "2",
         "Screen-Size": "1536*2048",
@@ -135,8 +135,7 @@ async def async_login(session, account, password, mac, language="it", fcm_token=
         "User-Agent": "LE/1.0.9.202 (Custom Integration)",
     }
 
-    async with session.post(LOGIN_URL, json=payload, headers=headers) as resp:
-        import json
+    async with session.post(login_url, json=payload, headers=headers) as resp:
         if resp.status != 200:
             _LOGGER.error("Login failed with status %s", resp.status)
             return None
@@ -754,7 +753,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     mac = config_data["persistent_mac"]
     language = config_data.get("language", "it")
     fcm_token = config_data.get("fcm_token", "dfi8s76mRTCxRxm3UtNp2z:APA91bHWMEWKT9CgNfGJ961jot2qgfYdWePbO5sQLovSFDI7U_H-ulJiqIAB2dpZUUrhzUNWR3OE_eM83i9IDLk1a5ZRwHDxMA_TnGqdpE8H-0_JML8pBFA")
-    
+
+    # Read region from config (default to "eu" for backwards compatibility)
+    region = config_data.get("region", "eu")
+    api_host = REGIONS.get(region, REGIONS["eu"])
+
+    # Build URLs dynamically based on region
+    login_url = f"https://{api_host}{LOGIN_PATH}"
+    family_list_url = f"https://{api_host}{FAMILY_LIST_PATH}"
+    user_profile_url = f"https://{api_host}{USER_PROFILE_PATH}"
+    device_list_url = f"https://{api_host}{DEVICE_LIST_PATH}"
+
+    _LOGGER.info("Using Lepro API region: %s (%s)", region, api_host)
+
     # Update hass.data with the new config
     hass.data["lepro_led"][entry.entry_id] = config_data
     
@@ -770,7 +781,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
 
     async with aiohttp.ClientSession() as session:
         # 1) Login and get bearer token
-        bearer_token = await async_login(session, account, password, mac, language, fcm_token)
+        bearer_token = await async_login(session, account, password, mac, login_url, api_host, language, fcm_token)
         if bearer_token is None:
             _LOGGER.error("Failed to login to Lepro API")
             return
@@ -782,7 +793,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
             "Device-Model": "custom_integration",
             "Device-System": "custom",
             "GMT": "+0",
-            "Host": "api-eu-iot.lepro.com",
+            "Host": api_host,
             "Language": language,
             "Platform": "2",
             "Screen-Size": "1536*2048",
@@ -791,7 +802,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         }
 
         # 2) Get user profile to find uid and MQTT info
-        user_url = USER_PROFILE_URL
+        user_url = user_profile_url
         timestamp = str(int(time.time()))
         headers["Timestamp"] = timestamp
         
@@ -817,7 +828,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
             return
 
         # 4) Get family list to find fid
-        family_url = FAMILY_LIST_URL.format(timestamp=timestamp)
+        family_url = family_list_url.format(timestamp=timestamp)
         async with session.get(family_url, headers=headers) as resp:
             if resp.status != 200:
                 _LOGGER.error("Failed to get family list from Lepro API")
@@ -832,7 +843,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
 
         # 5) Get device list by fid
         timestamp = str(int(time.time()))
-        device_url = DEVICE_LIST_URL.format(fid=fid, timestamp=timestamp)
+        device_url = device_list_url.format(fid=fid, timestamp=timestamp)
         headers["Timestamp"] = timestamp
 
         async with session.get(device_url, headers=headers) as resp:

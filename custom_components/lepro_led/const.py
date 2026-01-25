@@ -1,8 +1,15 @@
 DOMAIN = "lepro_led"
 
-LOGIN_URL = "https://api-eu-iot.lepro.com/user/login"
-FAMILY_LIST_URL = "https://api-eu-iot.lepro.com/family/list/timestamp/{timestamp}"
-USER_PROFILE_URL = "https://api-eu-iot.lepro.com/user/profile"
-DEVICE_LIST_URL = "https://api-eu-iot.lepro.com/v3/device/list/fid/{fid}/timestamp/{timestamp}"
-SWITCH_API_URL = "https://api-eu-iot.lepro.com/statistic/record"
+# Region configuration
+REGIONS = {
+    "eu": "api-eu-iot.lepro.com",
+    "na": "api-na-iot.lepro.com",
+}
+
+# URL paths (combined with region base URL)
+LOGIN_PATH = "/user/login"
+FAMILY_LIST_PATH = "/family/list/timestamp/{timestamp}"
+USER_PROFILE_PATH = "/user/profile"
+DEVICE_LIST_PATH = "/v3/device/list/fid/{fid}/timestamp/{timestamp}"
+SWITCH_API_PATH = "/statistic/record"
 
