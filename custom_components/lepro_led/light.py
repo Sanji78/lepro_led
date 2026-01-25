@@ -590,6 +590,21 @@ class LeproLedLight(LightEntity):
     def effect(self):
         return self._effect
 
+    @property
+    def rgb_color(self):
+        """Return the RGB color value."""
+        return self._attr_rgb_color
+
+    @property
+    def color_mode(self):
+        """Return the color mode of the light."""
+        return ColorMode.RGB
+
+    @property
+    def supported_color_modes(self):
+        """Return the supported color modes."""
+        return {ColorMode.RGB}
+
     async def _send_special_effect_command(self, effect):
         """Send command for special (d2=3) effects using d60.
            Uses self._sensitivity as 0..100 percent and encodes to 0x00..0x63.
