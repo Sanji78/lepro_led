@@ -1,10 +1,11 @@
 from homeassistant import config_entries
 import voluptuous as vol
-from .const import DOMAIN
+from .const import DOMAIN, REGIONS
 
 DATA_SCHEMA = vol.Schema({
     vol.Required("account"): str,
     vol.Required("password"): str,
+    vol.Optional("region", default="eu"): vol.In(list(REGIONS.keys())),
     vol.Optional("language", default="it"): str,
 })
 
