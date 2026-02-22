@@ -3,6 +3,8 @@ DOMAIN = "lepro_led"
 REGIONS = {
     "eu": "api-eu-iot.lepro.com",
     "na": "api-na-iot.lepro.com",
+    "fe": "api-fe-iot.lepro.com",
+    "us": "api-us-iot.lepro.com",
 }
 
 LOGIN_PATH = "/user/login"
