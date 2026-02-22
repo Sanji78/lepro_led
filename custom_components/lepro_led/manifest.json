@@ -9,5 +9,5 @@
   "issue_tracker": "https://github.com/Sanji78/lepro_led/issues",
   "loggers": ["custom_components.lepro_led"],
   "requirements": ["aiohttp", "aiomqtt>=2.4.0", "aiofiles"],
-  "version": "1.0.2"
+  "version": "1.1.0"
 }
