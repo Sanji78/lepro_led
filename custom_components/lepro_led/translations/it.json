@@ -8,9 +8,11 @@
         "data": {
           "account": "Account (email/telefono)",
           "password": "Password",
+          "region": "Regione",
           "language": "Lingua dell'app"
         },
         "data_description": {
+          "region": "Seleziona la regione del tuo account Lepro",
           "language": "Usata per le richieste verso le API Lepro."
         }
       }
