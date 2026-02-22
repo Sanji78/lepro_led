@@ -5,7 +5,6 @@ REGIONS = {
     "na": "api-na-iot.lepro.com",
 }
 
-# URL paths (combined with region base URL)
 LOGIN_PATH = "/user/login"
 FAMILY_LIST_PATH = "/family/list/timestamp/{timestamp}"
 USER_PROFILE_PATH = "/user/profile"
