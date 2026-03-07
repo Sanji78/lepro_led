@@ -149,6 +149,7 @@ async def async_login(session, account, password, mac, login_url, api_host, lang
 
 class LeproLedLight(LightEntity):
     # Effect constants
+    EFFECT_NONE = "none"
     EFFECT_SOLID = "solid"
     EFFECT_BREATH = "breath"
     EFFECT_GRADIENT = "gradient"
@@ -222,6 +223,7 @@ class LeproLedLight(LightEntity):
         self._attr_color_mode = ColorMode.RGB
         self._attr_supported_color_modes = {ColorMode.RGB}
         self._attr_effect_list = [
+            self.EFFECT_NONE,
             self.EFFECT_SOLID,
             self.EFFECT_BREATH,
             self.EFFECT_GRADIENT,
@@ -295,7 +297,7 @@ class LeproLedLight(LightEntity):
         rgb_color = kwargs.get(ATTR_RGB_COLOR, self._attr_rgb_color)
         requested_effect = kwargs.get(ATTR_EFFECT)
         effect = requested_effect if requested_effect is not None else self._effect
-        send_effect = effect
+        send_effect = self.EFFECT_SOLID if effect == self.EFFECT_NONE else effect
         if send_effect in self.SPECIAL_EFFECTS:
             send_effect = self.EFFECT_SOLID
         
@@ -401,7 +403,7 @@ class LeproLedLight(LightEntity):
 
         # build effect tail (reuse your existing logic)
         effect = ""
-        if self._effect == self.EFFECT_SOLID:  # Solid effect
+        if self._effect in (self.EFFECT_NONE, self.EFFECT_SOLID):  # Solid effect
             effect = "000640000E1"
         elif self._effect == self.EFFECT_BREATH:  # Breath effect
             effect = "000640000E4" + self._speed_to_hex(self._speed) + "0000" + self._speed_to_hex(self._speed) + "1664"

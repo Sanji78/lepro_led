@@ -31,6 +31,7 @@
             "effect": {
               "name": "Effect",
               "state": {
+                "none": "None",
                 "solid": "Solid",
                 "breath": "Breath",
                 "gradient": "Gradient",
