@@ -201,7 +201,7 @@ class LeproLedLight(LightEntity):
         # State variables
         self._is_on = bool(device.get("switch", 0))
         self._mode = device.get("d2", 2)  # Default to static mode
-        self._effect = self.EFFECT_SOLID
+        self._effect = self.EFFECT_NONE
         self._speed = 50  # Default speed (0-100)
         self._normalizing_effect = False
         # store 25 segments internally; main light mirrors segment 0
@@ -224,7 +224,6 @@ class LeproLedLight(LightEntity):
         self._attr_supported_color_modes = {ColorMode.RGB}
         self._attr_effect_list = [
             self.EFFECT_NONE,
-            self.EFFECT_SOLID,
             self.EFFECT_BREATH,
             self.EFFECT_GRADIENT,
             self.EFFECT_CLOCKWISE,
@@ -315,7 +314,7 @@ class LeproLedLight(LightEntity):
         if ATTR_EFFECT in kwargs:
             self._effect = effect
         elif self._effect in self.SPECIAL_EFFECTS:
-            self._effect = self.EFFECT_SOLID
+            self._effect = self.EFFECT_NONE
         
         # Send command based on effect
         if send_effect in self.SPECIAL_EFFECTS:
@@ -425,7 +424,7 @@ class LeproLedLight(LightEntity):
         """Parse grouped d50 string for effect and segment colours and primary color"""
         try:
             # Reset to defaults
-            self._effect = self.EFFECT_SOLID
+            self._effect = self.EFFECT_NONE
             self._speed = 50
 
             # Find P1000 block and F21000 marker
@@ -497,7 +496,7 @@ class LeproLedLight(LightEntity):
 
             # Parse effect and speed as before
             if "000640000E1" in d50_str:
-                self._effect = self.EFFECT_SOLID
+                self._effect = self.EFFECT_NONE
             elif breath_match := re.search(r'000640000E4([0-9A-F]{4})0000[0-9A-F]{4}1664', d50_str):
                 self._effect = self.EFFECT_BREATH
                 speed_hex = breath_match.group(1)
@@ -590,7 +589,7 @@ class LeproLedLight(LightEntity):
 
         self._normalizing_effect = True
         try:
-            self._effect = self.EFFECT_SOLID
+            self._effect = self.EFFECT_NONE
             self._mode = 2
             await self._send_effect_command()
         except Exception as e:
@@ -715,7 +714,7 @@ class LeproSegmentLight(LightEntity):
 
         try:
             if self._parent._effect in self._parent.SPECIAL_EFFECTS:
-                self._parent._effect = self._parent.EFFECT_SOLID
+                self._parent._effect = self._parent.EFFECT_NONE
             self._parent._mode = 2
             await self._parent._send_effect_command()
                 
@@ -980,7 +979,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
 
                 # Normalize devices that report a special-effect mode back to solid light mode.
                 if entity._mode == 3:
-                    entity._effect = entity.EFFECT_SOLID
+                    entity._effect = entity.EFFECT_NONE
                     entity._mode = 2
                     if entity._is_on and not entity._normalizing_effect:
                         entity.hass.async_create_task(entity._ensure_solid_mode())
