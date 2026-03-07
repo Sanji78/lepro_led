@@ -202,6 +202,7 @@ class LeproLedLight(LightEntity):
         self._mode = device.get("d2", 2)  # Default to static mode
         self._effect = self.EFFECT_SOLID
         self._speed = 50  # Default speed (0-100)
+        self._normalizing_effect = False
         # store 25 segments internally; main light mirrors segment 0
         self._segment_colors = [(255, 255, 255)] * 25  # Default all white
         self._sensitivity = 50  # For music mode
@@ -292,11 +293,16 @@ class LeproLedLight(LightEntity):
         # Determine new values from kwargs
         brightness = kwargs.get(ATTR_BRIGHTNESS, self._brightness)
         rgb_color = kwargs.get(ATTR_RGB_COLOR, self._attr_rgb_color)
-        effect = kwargs.get(ATTR_EFFECT, self._effect)
+        requested_effect = kwargs.get(ATTR_EFFECT)
+        effect = requested_effect if requested_effect is not None else self._effect
+        send_effect = effect
+        if send_effect in self.SPECIAL_EFFECTS:
+            send_effect = self.EFFECT_SOLID
         
         # Update state optimistically
         self._is_on = True
         self._brightness = brightness
+        self._mode = 2
         
         # When color changes on the main light, set all segments to the same color
         if ATTR_RGB_COLOR in kwargs:
@@ -306,11 +312,13 @@ class LeproLedLight(LightEntity):
         
         if ATTR_EFFECT in kwargs:
             self._effect = effect
+        elif self._effect in self.SPECIAL_EFFECTS:
+            self._effect = self.EFFECT_SOLID
         
         # Send command based on effect
-        if effect in self.SPECIAL_EFFECTS:
+        if send_effect in self.SPECIAL_EFFECTS:
             # special effects use d2=3 (d60)
-            await self._send_special_effect_command(effect)
+            await self._send_special_effect_command(send_effect)
         else:
             # regular effects use d2=2 (d50)
             await self._send_effect_command()
@@ -573,6 +581,21 @@ class LeproLedLight(LightEntity):
         except Exception as e:
             _LOGGER.error("Failed to send special effect command %s: %s", effect, e)
 
+    async def _ensure_solid_mode(self):
+        """Normalize the device back to static light mode."""
+        if self._normalizing_effect or not self._is_on:
+            return
+
+        self._normalizing_effect = True
+        try:
+            self._effect = self.EFFECT_SOLID
+            self._mode = 2
+            await self._send_effect_command()
+        except Exception as e:
+            _LOGGER.error("Failed to normalize %s to solid mode: %s", self.name, e)
+        finally:
+            self._normalizing_effect = False
+
 
     async def _send_effect_command(self):
         """Send command for effect modes"""
@@ -690,9 +713,9 @@ class LeproSegmentLight(LightEntity):
 
         try:
             if self._parent._effect in self._parent.SPECIAL_EFFECTS:
-                await self._parent._send_special_effect_command(self._parent._effect)
-            else:
-                await self._parent._send_effect_command()
+                self._parent._effect = self._parent.EFFECT_SOLID
+            self._parent._mode = 2
+            await self._parent._send_effect_command()
                 
         except Exception as e:
             _LOGGER.error("Error sending d50 after segment change: %s", e)
@@ -953,10 +976,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
                     if parsed_effect:
                         entity._effect = parsed_effect
 
-                # Update effect based on mode (mode==3 indicates special effects)
-                if entity._mode == 3 and entity._effect not in entity.SPECIAL_EFFECTS:
-                    # If we have no parsed effect but mode says special, default to flash
-                    entity._effect = entity.EFFECT_FLASH
+                # Normalize devices that report a special-effect mode back to solid light mode.
+                if entity._mode == 3:
+                    entity._effect = entity.EFFECT_SOLID
+                    entity._mode = 2
+                    if entity._is_on and not entity._normalizing_effect:
+                        entity.hass.async_create_task(entity._ensure_solid_mode())
 
                 # update main + segments states
                 entity.async_write_ha_state()
