@@ -1,12 +1,25 @@
 from homeassistant import config_entries
+from homeassistant.helpers import selector
 import voluptuous as vol
 from .const import DOMAIN, REGIONS
+
+REGION_OPTIONS = [
+    selector.SelectOptionDict(value="eu", label="Europe"),
+    selector.SelectOptionDict(value="us", label="United States"),
+    selector.SelectOptionDict(value="na", label="North America"),
+    selector.SelectOptionDict(value="fe", label="Far East"),
+]
 
 DATA_SCHEMA = vol.Schema({
     vol.Required("account"): str,
     vol.Required("password"): str,
-    vol.Optional("region", default="eu"): vol.In(list(REGIONS.keys())),
-    vol.Optional("language", default="it"): str,
+    vol.Optional("region", default="eu"): selector.SelectSelector(
+        selector.SelectSelectorConfig(
+            options=REGION_OPTIONS,
+            mode=selector.SelectSelectorMode.DROPDOWN,
+        )
+    ),
+    vol.Optional("language", default="en"): str,
 })
 
 class LeproLedConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):

@@ -108,7 +108,7 @@ class MQTTClientWrapper:
             except asyncio.CancelledError:
                 pass
 
-async def async_login(session, account, password, mac, login_url, api_host, language="it", fcm_token=""):
+async def async_login(session, account, password, mac, login_url, api_host, language="en", fcm_token=""):
     """Perform login and return bearer token."""
     timestamp = str(int(time.time()))
     payload = {
@@ -776,7 +776,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     
     # Use the persistent MAC from config_data
     mac = config_data["persistent_mac"]
-    language = config_data.get("language", "it")
+    language = config_data.get("language", "en")
     fcm_token = config_data.get("fcm_token", "dfi8s76mRTCxRxm3UtNp2z:APA91bHWMEWKT9CgNfGJ961jot2qgfYdWePbO5sQLovSFDI7U_H-ulJiqIAB2dpZUUrhzUNWR3OE_eM83i9IDLk1a5ZRwHDxMA_TnGqdpE8H-0_JML8pBFA")
 
     region = config_data.get("region", "eu")
