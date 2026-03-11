@@ -64,7 +64,6 @@ This custom integration logs in to **Lepro Cloud**, retrieves your lights and st
 
 ## B1 Notes
 
-This fork includes dedicated investigation work for **B1** bulbs.
 The B1 protocol does not behave like strip-focused `d50` control, so support has been implemented by comparing Home Assistant traffic with the official app's MQTT payloads.
 
 ### Current direction
