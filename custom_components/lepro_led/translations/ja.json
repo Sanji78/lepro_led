@@ -1,0 +1,67 @@
+{
+  "title": "Lepro LED Strip",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Lepro LED Strip に接続",
+        "description": "Lepro アカウントでサインインします。クラウド認証用に仮想 MAC アドレスが生成されます。",
+        "data": {
+          "account": "アカウント（メール / 電話番号）",
+          "password": "パスワード",
+          "region": "リージョン",
+          "language": "アプリ言語"
+        },
+        "data_description": {
+          "region": "Lepro アカウントを登録したリージョンを選択してください",
+          "language": "Lepro API へのリクエストに使用されます。"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "接続できません",
+      "invalid_auth": "アカウントまたはパスワードが正しくありません",
+      "unknown": "予期しないエラー"
+    }
+  },
+  "entity": {
+    "light": {
+      "strip": {
+        "name": "Lepro LED Strip",
+        "state_attributes": {
+          "effect": {
+            "name": "エフェクト",
+            "state": {
+              "none": "なし",
+              "solid": "点灯",
+              "breath": "ブレス",
+              "gradient": "グラデーション",
+              "clockwise": "時計回り",
+              "counterclockwise": "反時計回り",
+              "circular": "サーキュラー",
+              "flash": "フラッシュ",
+              "wave_1": "ウェーブ 1",
+              "wave_2": "ウェーブ 2",
+              "wave_3": "ウェーブ 3",
+              "wave_4": "ウェーブ 4",
+              "laser_1": "レーザー 1",
+              "laser_2": "レーザー 2",
+              "laser_3": "レーザー 3",
+              "laser_4": "レーザー 4"
+            }
+          }
+        }
+      },
+      "segment": {
+        "name": "セグメント {index}"
+      }
+    },
+    "number": {
+      "speed": {
+        "name": "速度"
+      },
+      "sensitivity": {
+        "name": "感度"
+      }
+    }
+  }
+}
