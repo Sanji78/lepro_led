@@ -47,6 +47,10 @@ This custom integration logs in to **Lepro Cloud**, retrieves your lights and st
 3. Enter your **Lepro email and password**.
 4. On success, entities will be created for each device.
 
+### Options
+- `region`: Europe, United States, North America, Far East
+- `language`: includes `en`, `it`, and `ja`
+
 ### Entities
 - **Lights**: control on/off, brightness, color temperature, RGB color, effects.
 - **Sensors**: connection status, device model, firmware, MAC, online/offline.
@@ -55,6 +59,44 @@ This custom integration logs in to **Lepro Cloud**, retrieves your lights and st
 > Notes:
 > - Credentials are stored in Home Assistant’s config entries.
 > - The integration communicates with Lepro’s cloud API (internet required).
+
+---
+
+## B1 Notes
+
+This fork includes dedicated investigation work for **B1** bulbs.
+The B1 protocol does not behave like strip-focused `d50` control, so support has been implemented by comparing Home Assistant traffic with the official app's MQTT payloads.
+
+### Current direction
+- RGB mode is driven by `d2=1` plus `d5`.
+- White/static mode is driven by `d2=0` plus `d3` and `d4`.
+- Some B1 behavior is still under active investigation and may require more protocol tuning.
+
+### Observed B1 protocol fields
+
+| Field | Observed meaning | Notes |
+| --- | --- | --- |
+| `d1` | Power state | `1` on, `0` off |
+| `d2` | Mode | `0` = white/static, `1` = RGB |
+| `d3` | White brightness | In white mode, app writes values like `250`, `500`, `750`, `1000` |
+| `d4` | White-mode companion value | Observed as `500` in app-driven white mode |
+| `d5` | RGB payload body | Observed format: `{hue_hex}{03E8}{value_hex}` |
+| `d30` | Extra device state field | Seen in reports, but not required by the official app's RGB writes |
+| `d52` | Generic brightness field | Used by other devices/modes, but not the app's main B1 white write path |
+
+### Observed B1 examples
+
+| Scenario | App payload |
+| --- | --- |
+| Red 100% | `{'d2': 1, 'd5': '000003E803E8'}` |
+| Green 100% | `{'d2': 1, 'd5': '007803E803E8'}` |
+| Blue 100% | `{'d2': 1, 'd5': '00F003E803E8'}` |
+| White 25% | `{'d2': 0, 'd3': 250, 'd4': 500}` |
+| White 50% | `{'d2': 0, 'd3': 500, 'd4': 500}` |
+| White 75% | `{'d2': 0, 'd3': 750, 'd4': 500}` |
+| White 100% | `{'d2': 0, 'd3': 1000, 'd4': 500}` |
+
+These values were captured from the official app via MQTT logging and are included here so future protocol work has a stable reference.
 
 ---
 
