@@ -12,7 +12,6 @@ send_debug_command:
       name: Payload
       description: >
         Dictionary placed in the "d" field of the MQTT payload sent to le/<device_id>/prp/set.
-        Example: {"dps": {"d1": 1}}
       required: true
       selector:
         object:
@@ -43,6 +42,7 @@ request_debug_state:
       name: Keys
       description: List of state keys to request (sent as {"d": keys} to le/<device_id>/prp/get).
       required: false
-      example: ["d1", "d2", "d3", "online"]
+      example: >
+        ["d1", "d2", "d3", "online"]
       selector:
         object:
