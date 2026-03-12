@@ -234,8 +234,13 @@ class LeproLedLight(LightEntity):
             self._brightness = self._map_device_brightness(device["d52"])
         else:
             self._brightness = 255
+
         if "d60" in device:
-            self._sensitivity = self._parse_d60(device["d60"])
+            sens, parsed_effect = self._parse_d60(device["d60"])
+            self._sensitivity = sens
+            if parsed_effect:
+                self._effect = parsed_effect
+        
         self._update_b1_static_state(device)
         
         # Entity attributes
