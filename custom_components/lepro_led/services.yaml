@@ -40,7 +40,8 @@ request_debug_state:
         text:
     keys:
       name: Keys
-      description: List of state keys to request (sent as {"d": keys} to le/<device_id>/prp/get).
+      description: >
+        List of state keys to request (sent as '{"d": keys}' to le/<device_id>/prp/get).
       required: false
       example: >
         ["d1", "d2", "d3", "online"]
