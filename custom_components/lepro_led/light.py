@@ -214,11 +214,15 @@ class LeproLedLight(LightEntity):
         # State variables
         self._is_on = bool(device.get("switch", 0))
         self._mode = device.get("d2", 2)  # Default to static mode
-        self._effect = self.EFFECT_NONE
+        self._effect = self.EFFECT_SOLID
         self._speed = 50  # Default speed (0-100)
         self._normalizing_effect = False
         self._b1_static_state = {}
         self._b1_rgb_state = {}
+        # Keep B1-specific default
+        if self.is_b1_model:
+            self._effect = self.EFFECT_NONE
+    
         # store 25 segments internally; main light mirrors segment 0
         self._segment_colors = [(255, 255, 255)] * 25  # Default all white
         self._sensitivity = 50  # For music mode
@@ -849,12 +853,14 @@ class LeproSegmentLight(LightEntity):
 
         try:
             if self._parent._effect in self._parent.SPECIAL_EFFECTS:
-                self._parent._effect = self._parent.EFFECT_NONE
-            self._parent._mode = 2
-            await self._parent._send_effect_command()
-                
+                # Restore old behavior: do not force-exit special effects on segment changes
+                await self._parent._send_special_effect_command(self._parent._effect)
+            else:
+                self._parent._mode = 2
+                await self._parent._send_effect_command()
         except Exception as e:
             _LOGGER.error("Error sending d50 after segment change: %s", e)
+
         # update states: parent + all segments
         try:
             self._parent.async_write_ha_state()
@@ -1152,7 +1158,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
                         entity._effect = parsed_effect
 
                 # Normalize devices that report a special-effect mode back to solid light mode.
-                if entity._mode == 3:
+                if entity.is_b1_model and entity._mode == 3:
                     entity._effect = entity.EFFECT_NONE
                     entity._mode = 2
                     if entity._is_on and not entity._normalizing_effect:
