@@ -273,7 +273,7 @@ class LeproLedLight(LightEntity):
         model = str(self._attr_device_info.get("model", "")).upper()
         return "B1" in model
 
-   @property
+    @property
     def is_b3_model(self):
         """Return True when the device model/series indicates a B3 bulb."""
         model = str(self._attr_device_info.get("model", "")).upper()
