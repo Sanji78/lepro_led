@@ -409,7 +409,7 @@ class LeproLedLight(LightEntity):
         requested_effect = kwargs.get(ATTR_EFFECT)
         effect = requested_effect if requested_effect is not None else self._effect
         send_effect = self.EFFECT_SOLID if effect == self.EFFECT_NONE else effect
-        if send_effect in self.SPECIAL_EFFECTS:
+        if self.is_b1_model and send_effect in self.SPECIAL_EFFECTS:
             send_effect = self.EFFECT_SOLID
         
         # Update state optimistically
