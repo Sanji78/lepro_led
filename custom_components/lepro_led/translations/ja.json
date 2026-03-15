@@ -51,6 +51,32 @@
           }
         }
       },
+      "bulb": {
+        "name": "電球",
+        "state_attributes": {
+          "effect": {
+            "name": "エフェクト",
+            "state": {
+              "none": "なし",
+              "solid": "点灯",
+              "breath": "ブレス",
+              "gradient": "グラデーション",
+              "clockwise": "時計回り",
+              "counterclockwise": "反時計回り",
+              "circular": "サーキュラー",
+              "flash": "フラッシュ",
+              "wave_1": "ウェーブ 1",
+              "wave_2": "ウェーブ 2",
+              "wave_3": "ウェーブ 3",
+              "wave_4": "ウェーブ 4",
+              "laser_1": "レーザー 1",
+              "laser_2": "レーザー 2",
+              "laser_3": "レーザー 3",
+              "laser_4": "レーザー 4"
+            }
+          }
+        }
+      },
       "segment": {
         "name": "セグメント {index}"
       }
