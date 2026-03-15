@@ -51,6 +51,32 @@
             }
           }
         },
+        "bulb": {
+          "name": "Bulb",
+          "state_attributes": {
+            "effect": {
+              "name": "Effect",
+              "state": {
+                "none": "None",
+                "solid": "Solid",
+                "breath": "Breath",
+                "gradient": "Gradient",
+                "clockwise": "Clockwise",
+                "counterclockwise": "Counter-clockwise",
+                "circular": "Circular",
+                "flash": "Flash",
+                "wave_1": "Wave 1",
+                "wave_2": "Wave 2",
+                "wave_3": "Wave 3",
+                "wave_4": "Wave 4",
+                "laser_1": "Laser 1",
+                "laser_2": "Laser 2",
+                "laser_3": "Laser 3",
+                "laser_4": "Laser 4"
+              }
+            }
+          }
+        },
         "segment": {
           "name": "Segment {index}"
         }
