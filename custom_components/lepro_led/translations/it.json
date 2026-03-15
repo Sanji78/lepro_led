@@ -51,6 +51,32 @@
             }
           }
         },
+        "bulb": {
+          "name": "Lampadina",
+          "state_attributes": {
+            "effect": {
+              "name": "Effetto",
+              "state": {
+                "none": "Nessuno",
+                "solid": "Fisso",
+                "breath": "Respiro",
+                "gradient": "Gradiente",
+                "clockwise": "Orario",
+                "counterclockwise": "Antiorario",
+                "circular": "Circolare",
+                "flash": "Flash",
+                "wave_1": "Onda 1",
+                "wave_2": "Onda 2",
+                "wave_3": "Onda 3",
+                "wave_4": "Onda 4",
+                "laser_1": "Laser 1",
+                "laser_2": "Laser 2",
+                "laser_3": "Laser 3",
+                "laser_4": "Laser 4"
+              }
+            }
+          }
+        },
         "segment": {
           "name": "Segmento {index}"
         }
