@@ -1125,16 +1125,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
             if not entity:
                 return
 
-            if entity.is_b_model:
-                _LOGGER.info(
-                    "%s raw MQTT for %s (%s) topic=%s type=%s payload=%s",
-                    self._attr_device_info.get("model", ""),
-                    entity.name,
-                    did,
-                    topic,
-                    message_type,
-                    payload,
-                )
+            _LOGGER.info(
+                "%s raw MQTT for %s (%s) topic=%s type=%s payload=%s",
+                entity._attr_device_info.get("model", ""),
+                entity.name,
+                did,
+                topic,
+                message_type,
+                payload,
+            )
                 
             # Handle different message types
             if message_type in ["rpt", "set", "getr"]:
@@ -1147,7 +1146,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
                     }
                     _LOGGER.info(
                         "%s state update for %s (%s) topic=%s: %s",
-                        self._attr_device_info.get("model", ""),
+                        entity._attr_device_info.get("model", ""),
                         entity.name,
                         did,
                         topic,
@@ -1156,7 +1155,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
                     if any(key in data for key in ["d2", "d3", "d4", "d5"]):
                         _LOGGER.info(
                             "%s RGB sample for %s (%s): d2=%s d3=%s d4=%s d5=%s",
-                            self._attr_device_info.get("model", ""),
+                            entity._attr_device_info.get("model", ""),
                             entity.name,
                             did,
                             data.get("d2"),
@@ -1226,18 +1225,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
 
                 _LOGGER.debug("Updated state for %s: on=%s, mode=%s, effect=%s, brightness=%s, speed=%s, rgb=%s, sensitivity=%s", 
                              entity.name, entity._is_on, entity._mode, entity._effect, entity._brightness, entity._speed, entity._segment_colors[0], entity._sensitivity)
-                if entity.is_b_model:
-                    _LOGGER.info(
-                        "%s normalized state for %s (%s): on=%s mode=%s effect=%s brightness=%s rgb=%s",
-                        self._attr_device_info.get("model", ""),
-                        entity.name,
-                        did,
-                        entity._is_on,
-                        entity._mode,
-                        entity._effect,
-                        entity._brightness,
-                        entity._segment_colors[0],
-                    )
+                _LOGGER.info(
+                    "%s normalized state for %s (%s): on=%s mode=%s effect=%s brightness=%s rgb=%s",
+                    entity._attr_device_info.get("model", ""),
+                    entity.name,
+                    did,
+                    entity._is_on,
+                    entity._mode,
+                    entity._effect,
+                    entity._brightness,
+                    entity._segment_colors[0],
+                )
                     
         except Exception as e:
             _LOGGER.error("Error processing MQTT message: %s", e)
