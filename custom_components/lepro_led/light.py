@@ -211,7 +211,7 @@ class LeproLedLight(LightEntity):
             "model": device.get("series", "Lepro LED"),
         }        
         if self.is_b_model:
-            self._attr_translation_key = "light"
+            self._attr_translation_key = "bulb"
         else:
             self._attr_translation_key = "strip"
         # State variables
