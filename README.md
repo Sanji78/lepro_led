@@ -62,16 +62,16 @@ This custom integration logs in to **Lepro Cloud**, retrieves your lights and st
 
 ---
 
-## B1 Notes
+## B* Notes
 
-The B1 protocol does not behave like strip-focused `d50` control, so support has been implemented by comparing Home Assistant traffic with the official app's MQTT payloads.
+The B* protocol does not behave like strip-focused `d50` control, so support has been implemented by comparing Home Assistant traffic with the official app's MQTT payloads.
 
 ### Current direction
 - RGB mode is driven by `d2=1` plus `d5`.
 - White/static mode is driven by `d2=0` plus `d3` and `d4`.
 - Some B1 behavior is still under active investigation and may require more protocol tuning.
 
-### Observed B1 protocol fields
+### Observed B* protocol fields
 
 | Field | Observed meaning | Notes |
 | --- | --- | --- |
@@ -83,7 +83,7 @@ The B1 protocol does not behave like strip-focused `d50` control, so support has
 | `d30` | Extra device state field | Seen in reports, but not required by the official app's RGB writes |
 | `d52` | Generic brightness field | Used by other devices/modes, but not the app's main B1 white write path |
 
-### Observed B1 examples
+### Observed B* examples
 
 | Scenario | App payload |
 | --- | --- |
