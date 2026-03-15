@@ -1,9 +1,9 @@
 {
-  "title": "Lepro LED Strip",
+  "title": "Lepro LED",
   "config": {
     "step": {
       "user": {
-        "title": "Lepro LED Strip に接続",
+        "title": "Lepro LED に接続",
         "description": "Lepro アカウントでサインインします。クラウド認証用に仮想 MAC アドレスが生成されます。",
         "data": {
           "account": "アカウント（メール / 電話番号）",
@@ -26,7 +26,7 @@
   "entity": {
     "light": {
       "strip": {
-        "name": "Lepro LED Strip",
+        "name": "LED Strip",
         "state_attributes": {
           "effect": {
             "name": "エフェクト",
