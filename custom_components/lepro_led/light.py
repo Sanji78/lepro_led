@@ -204,13 +204,16 @@ class LeproLedLight(LightEntity):
         self._entry_id = entry_id
         self._did = str(device["did"])
         self._attr_has_entity_name = True
-        self._attr_translation_key = "strip"
         self._attr_device_info = {
             "identifiers": {(DOMAIN, self._did)},
             "name": device["name"],
             "manufacturer": "Lepro",
             "model": device.get("series", "Lepro LED"),
         }        
+        if self.is_b_model:
+            self._attr_translation_key = "light"
+        else:
+            self._attr_translation_key = "strip"
         # State variables
         self._is_on = bool(device.get("switch", 0))
         self._mode = device.get("d2", 2)  # Default to static mode
