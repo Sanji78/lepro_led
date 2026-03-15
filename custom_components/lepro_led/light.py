@@ -734,7 +734,7 @@ class LeproLedLight(LightEntity):
     async def _send_b1_rgb_command(self, rgb_color):
         """Send a B1 RGB payload using the same fields the official app writes."""
         payload = self._build_b1_rgb_payload(rgb_color, self._brightness)
-        _LOGGER.info("B1 rgb-mode payload for %s (%s): %s", self.name, self._did, payload)
+        _LOGGER.info("%s rgb-mode payload for %s (%s): %s", self._attr_device_info.get("model", ""), self.name, self._did, payload)
         await self._send_mqtt_command(payload)
 
 
@@ -742,8 +742,13 @@ class LeproLedLight(LightEntity):
         """Send command for effect modes"""
         if self._should_skip_d50_for_static_mode():
             payload = self._get_b1_static_payload(self._brightness)
+            
+            # REQUIRED: ensure bulb is turned ON
+            payload["d1"] = 1
+            
             _LOGGER.info(
-                "B1 static-mode payload for %s (%s): %s",
+                "%s static-mode payload for %s (%s): %s",
+                self._attr_device_info.get("model", ""),
                 self.name,
                 self._did,
                 payload,
@@ -777,7 +782,8 @@ class LeproLedLight(LightEntity):
             _LOGGER.debug("Sent MQTT command: %s - %s", topic, full_payload)
             if self.is_b_model:
                 _LOGGER.info(
-                    "B1 command for %s (%s): %s",
+                    "%s command for %s (%s): %s",
+                    self._attr_device_info.get("model", ""),
                     self.name,
                     self._did,
                     full_payload,
@@ -800,7 +806,7 @@ class LeproLedLight(LightEntity):
             await self._mqtt_client.publish(topic, payload)
             _LOGGER.debug("Requested state update for %s", self.name)
             if self.is_b_model:
-                _LOGGER.info("B1 state request for %s (%s): %s", self.name, self._did, payload)
+                _LOGGER.info("%s state request for %s (%s): %s", self._attr_device_info.get("model", ""), self.name, self._did, payload)
         except Exception as e:
             _LOGGER.error("Failed to request state update: %s", e)
 
@@ -1106,7 +1112,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
 
             if entity.is_b_model:
                 _LOGGER.info(
-                    "B1 raw MQTT for %s (%s) topic=%s type=%s payload=%s",
+                    "%s raw MQTT for %s (%s) topic=%s type=%s payload=%s",
+                    self._attr_device_info.get("model", ""),
                     entity.name,
                     did,
                     topic,
@@ -1124,7 +1131,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
                         if key in data
                     }
                     _LOGGER.info(
-                        "B1 state update for %s (%s) topic=%s: %s",
+                        "%s state update for %s (%s) topic=%s: %s",
+                        self._attr_device_info.get("model", ""),
                         entity.name,
                         did,
                         topic,
@@ -1132,7 +1140,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
                     )
                     if any(key in data for key in ["d2", "d3", "d4", "d5"]):
                         _LOGGER.info(
-                            "B1 RGB sample for %s (%s): d2=%s d3=%s d4=%s d5=%s",
+                            "%s RGB sample for %s (%s): d2=%s d3=%s d4=%s d5=%s",
+                            self._attr_device_info.get("model", ""),
                             entity.name,
                             did,
                             data.get("d2"),
@@ -1204,7 +1213,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
                              entity.name, entity._is_on, entity._mode, entity._effect, entity._brightness, entity._speed, entity._segment_colors[0], entity._sensitivity)
                 if entity.is_b_model:
                     _LOGGER.info(
-                        "B1 normalized state for %s (%s): on=%s mode=%s effect=%s brightness=%s rgb=%s",
+                        "%s normalized state for %s (%s): on=%s mode=%s effect=%s brightness=%s rgb=%s",
+                        self._attr_device_info.get("model", ""),
                         entity.name,
                         did,
                         entity._is_on,
