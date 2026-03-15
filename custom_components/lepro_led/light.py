@@ -312,7 +312,7 @@ class LeproLedLight(LightEntity):
             payload["d3"] = int(round(max(0.0, min(1.0, brightness / 255)) * 1000))
             payload["d4"] = int(payload.get("d4", self.B1_STATIC_STATE_FALLBACK["d4"]))
         payload.pop("d5", None)
-        payload.pop("d30", None)
+        #payload.pop("d30", None)
         return payload
 
     def _update_b1_rgb_state(self, source: dict):
