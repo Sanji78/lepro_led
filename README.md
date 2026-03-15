@@ -69,7 +69,7 @@ The B* protocol does not behave like strip-focused `d50` control, so support has
 ### Current direction
 - RGB mode is driven by `d2=1` plus `d5`.
 - White/static mode is driven by `d2=0` plus `d3` and `d4`.
-- Some B1 behavior is still under active investigation and may require more protocol tuning.
+- Some B* behavior is still under active investigation and may require more protocol tuning.
 
 ### Observed B* protocol fields
 
@@ -81,7 +81,7 @@ The B* protocol does not behave like strip-focused `d50` control, so support has
 | `d4` | White-mode companion value | Observed as `500` in app-driven white mode |
 | `d5` | RGB payload body | Observed format: `{hue_hex}{03E8}{value_hex}` |
 | `d30` | Extra device state field | Seen in reports, but not required by the official app's RGB writes |
-| `d52` | Generic brightness field | Used by other devices/modes, but not the app's main B1 white write path |
+| `d52` | Generic brightness field | Used by other devices/modes, but not the app's main B* white write path |
 
 ### Observed B* examples
 
