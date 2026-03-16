@@ -749,6 +749,10 @@ class LeproLedLight(LightEntity):
     async def _send_b1_rgb_command(self, rgb_color):
         """Send a B1 RGB payload using the same fields the official app writes."""
         payload = self._build_b1_rgb_payload(rgb_color, self._brightness)
+
+        # Ensure the bulb is ON when changing color
+        payload["d1"] = 1
+    
         _LOGGER.info("%s rgb-mode payload for %s (%s): %s", self._attr_device_info.get("model", ""), self.name, self._did, payload)
         await self._send_mqtt_command(payload)
 
@@ -1197,11 +1201,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
                         entity._effect = parsed_effect
 
                 # Normalize devices that report a special-effect mode back to solid light mode.
-                if entity.is_b_model and entity._mode == 3:
-                    entity._effect = entity.EFFECT_NONE
-                    entity._mode = 2
-                    if entity._is_on and not entity._normalizing_effect:
-                        entity.hass.async_create_task(entity._ensure_solid_mode())
+                # if entity.is_b_model and entity._mode == 3:
+                #     entity._effect = entity.EFFECT_NONE
+                #     entity._mode = 2
+                #     if entity._is_on and not entity._normalizing_effect:
+                #         entity.hass.async_create_task(entity._ensure_solid_mode())
 
                 # update main + segments states
                 entity.async_write_ha_state()
