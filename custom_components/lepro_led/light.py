@@ -463,6 +463,7 @@ class LeproLedLight(LightEntity):
             send_effect = self.EFFECT_SOLID
         
         # Update state optimistically
+        was_off = not self._is_on
         self._is_on = True
         self._brightness = brightness
         if self.is_b_model and (b1_rgb_brightness_request or (requested_rgb_change and not b1_static_color_request)):
