@@ -382,6 +382,24 @@ class LeproLedLight(LightEntity):
         """Map HA brightness (0-255) to device brightness (100-1000)"""
         # return 100 + int(ha_brightness * 900 / 255)
         return 0 + int(ha_brightness * 1000 / 255)
+
+    def _parse_b_rgb_d5_to_rgb(self, d5: str) -> tuple[int, int, int] | None:
+        """Parse B-series d5 (HHHH03E8VVVV) into an RGB tuple."""
+        try:
+            if not d5 or len(d5) < 12:
+                return None
+    
+            hue_deg = int(d5[0:4], 16) % 360
+            sat_int = int(d5[4:8], 16)  # usually 0x03E8
+            val_int = int(d5[8:12], 16)
+    
+            sat = max(0.0, min(1.0, sat_int / 1000.0))
+            val = max(0.0, min(1.0, val_int / 1000.0))
+    
+            r_f, g_f, b_f = colorsys.hsv_to_rgb(hue_deg / 360.0, sat, val)
+            return (int(round(r_f * 255)), int(round(g_f * 255)), int(round(b_f * 255)))
+        except Exception:
+            return None    
     
     def _parse_d60(self, d60_str):
         """
@@ -470,6 +488,15 @@ class LeproLedLight(LightEntity):
         if b1_static_color_request:
             self._effect = self.EFFECT_NONE
             await self._send_effect_command()
+        # NEW: B bulb turned on with no explicit color/effect -> restore last known color
+        elif (
+            self.is_b_model
+            and was_off
+            and not requested_rgb_change
+            and requested_effect is None
+            and not self._is_b1_white_like(self._attr_rgb_color)
+        ):
+            await self._send_b1_rgb_command(self._attr_rgb_color)
         elif self.is_b_model and (requested_rgb_change or b1_rgb_brightness_request):
             await self._send_b1_rgb_command(self._attr_rgb_color)
         elif send_effect in self.SPECIAL_EFFECTS:
@@ -1192,6 +1219,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
 
                 entity._update_b1_static_state(data)
                 entity._update_b1_rgb_state(data)
+
+                # Update stored RGB color for B bulbs from d5
+                if entity.is_b_model and "d5" in data and isinstance(data.get("d5"), str):
+                    rgb = entity._parse_b_rgb_d5_to_rgb(data["d5"])
+                    if rgb:
+                        entity._attr_rgb_color = rgb                
                 
                 # Update effect and colors
                 if 'd50' in data:
