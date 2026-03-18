@@ -278,13 +278,13 @@ class LeproLedLight(LightEntity):
         
     @property
     def is_bc1_model(self):
-        """Return True when the device model/series indicates a B1 bulb."""
+        """Return True when the device model/series indicates a BC1 bulb."""
         model = str(self._attr_device_info.get("model", "")).upper()
         return "BC1" in model
         
     @property
     def is_b2_model(self):
-        """Return True when the device model/series indicates a B3 bulb."""
+        """Return True when the device model/series indicates a B2 bulb."""
         model = str(self._attr_device_info.get("model", "")).upper()
         return "B2" in model
         
@@ -295,9 +295,15 @@ class LeproLedLight(LightEntity):
         return "B3" in model
 
     @property
+    def is_t1_model(self):
+        """Return True when the device model/series indicates a T1 bulb."""
+        model = str(self._attr_device_info.get("model", "")).upper()
+        return "T1" in model    
+    
+    @property
     def is_b_model(self):
         """Return True when the device model indicates any B-series bulb."""
-        return self.is_b1_model or self.is_bc1_model or self.is_b2_model or self.is_b3_model
+        return self.is_b1_model or self.is_bc1_model or self.is_b2_model or self.is_b3_model or self.is_t1_model
     
     def _should_skip_d50_for_static_mode(self):
         """Use a reduced payload for B1 bulbs to test whether d50 causes flashing."""
