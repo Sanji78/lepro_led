@@ -82,12 +82,17 @@
       }
     },
     "number": {
-      "speed": {
-        "name": "速度"
-      },
-      "sensitivity": {
-        "name": "感度"
-      }
+        "speed": {
+          "name": "速度"
+        },
+        "sensitivity": {
+          "name": "感度"
+        }
+    },
+    "switch": {
+        "power": {
+          "name": "電源"
+        }
     }
   }
 }

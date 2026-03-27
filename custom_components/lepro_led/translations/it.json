@@ -88,6 +88,11 @@
         "sensitivity": {
           "name": "Sensibilità"
         }
+    },
+    "switch": {
+        "power": {
+          "name": "Accensione"
+        }
     }
   }
 }

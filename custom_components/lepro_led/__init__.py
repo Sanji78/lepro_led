@@ -106,12 +106,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN][entry.entry_id] = entry.data
 
     # THIS is the correct version
-    await hass.config_entries.async_forward_entry_setups(entry, ["light", "number"])
+    await hass.config_entries.async_forward_entry_setups(entry, ["light", "number", "switch"])
     return True
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-    unload_ok = await hass.config_entries.async_unload_platforms(entry, ["light", "number"])
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, ["light", "number", "switch"])
     if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id)
         if not hass.data[DOMAIN]:

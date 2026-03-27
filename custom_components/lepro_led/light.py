@@ -281,7 +281,7 @@ class LeproLedLight(LightEntity):
         """Return True when the device model/series indicates a BC1 bulb."""
         model = str(self._attr_device_info.get("model", "")).upper()
         return "BC1" in model
-
+    
     @property
     def is_bp1_model(self):
         """Return True when the device model/series indicates a BP1 bulb."""
@@ -445,6 +445,21 @@ class LeproLedLight(LightEntity):
 
     async def async_turn_on(self, **kwargs):
         """Turn on the light with optional parameters."""
+        if not kwargs:
+            self._is_on = True
+            await self._send_mqtt_command({"d1": 1})
+            self.async_write_ha_state()
+            try:
+                segments = self.hass.data[DOMAIN][self._entry_id].get('segments', {}).get(self._did, [])
+                for seg in segments:
+                    try:
+                        seg.async_write_ha_state()
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+            return
+
         # Determine new values from kwargs
         brightness = kwargs.get(ATTR_BRIGHTNESS, self._brightness)
         rgb_color = kwargs.get(ATTR_RGB_COLOR, self._attr_rgb_color)
