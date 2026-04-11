@@ -211,6 +211,8 @@ class LeproLedLight(LightEntity):
             "manufacturer": "Lepro",
             "model": device.get("series", "Lepro LED"),
             "serial_number": self._did,
+            "firmware_version": device.get("fwVersion", "Unknown"),
+            "hardware_version": device.get("hwVersion", "Unknown"),
         }        
         if self.is_b_model:
             self._attr_translation_key = "bulb"
