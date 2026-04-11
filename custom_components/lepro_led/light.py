@@ -210,6 +210,7 @@ class LeproLedLight(LightEntity):
             "name": device["name"],
             "manufacturer": "Lepro",
             "model": device.get("series", "Lepro LED"),
+            "serial_number": self._did,
         }        
         if self.is_b_model:
             self._attr_translation_key = "bulb"
