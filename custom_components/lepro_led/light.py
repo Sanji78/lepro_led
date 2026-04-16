@@ -18,6 +18,7 @@ from homeassistant.core import callback
 from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
     ATTR_RGB_COLOR,
+    ATTR_COLOR_TEMP_KELVIN,
     ATTR_EFFECT,
     ATTR_RGBW_COLOR,
     LightEntity,
@@ -209,6 +210,9 @@ class LeproLedLight(LightEntity):
             "name": device["name"],
             "manufacturer": "Lepro",
             "model": device.get("series", "Lepro LED"),
+            "serial_number": self._did,
+            "sw_version": device.get("fwVersion", "Unknown"),
+            "hw_version": device.get("hwVersion", "Unknown"),
         }        
         if self.is_b_model:
             self._attr_translation_key = "bulb"
@@ -248,8 +252,17 @@ class LeproLedLight(LightEntity):
         
         # Entity attributes
         self._attr_supported_features = LightEntityFeature.EFFECT
-        self._attr_color_mode = ColorMode.RGB
-        self._attr_supported_color_modes = {ColorMode.RGB}
+        if self.is_b_model:
+            self._attr_color_mode = ColorMode.COLOR_TEMP
+            self._attr_supported_color_modes = {ColorMode.RGB, ColorMode.COLOR_TEMP}
+            self._attr_min_color_temp_kelvin = 2700
+            self._attr_max_color_temp_kelvin = 6500
+            self._attr_color_temp_kelvin = 4000  # neutral default
+            if "d4" in device:
+                self._attr_color_temp_kelvin = self._d4_to_kelvin(device["d4"])
+        else:
+            self._attr_color_mode = ColorMode.RGB
+            self._attr_supported_color_modes = {ColorMode.RGB}
         self._attr_effect_list = [
             self.EFFECT_NONE,
             self.EFFECT_BREATH,
@@ -377,7 +390,17 @@ class LeproLedLight(LightEntity):
         r, g, b = [int(max(0, min(255, c))) for c in rgb_color]
         _, sat, _ = colorsys.rgb_to_hsv(r / 255, g / 255, b / 255)
         return sat <= 0.05
-            
+
+    def _d4_to_kelvin(self, d4: int) -> int:
+        """Convert B-series d4 color temp value (0=warm/2700K, 1000=cool/6500K) to Kelvin."""
+        d4 = max(0, min(1000, int(d4)))
+        return round(2700 + d4 * (6500 - 2700) / 1000)
+
+    def _kelvin_to_d4(self, kelvin: int) -> int:
+        """Convert Kelvin to B-series d4 color temp value (0=warm, 1000=cool)."""
+        kelvin = max(2700, min(6500, int(kelvin)))
+        return round((kelvin - 2700) * 1000 / (6500 - 2700))
+
     def _map_device_brightness(self, device_brightness):
         """Map device brightness (100-1000) to HA brightness (0-255)"""
         _LOGGER.info("device_brightness: %s", str(device_brightness))
@@ -460,6 +483,21 @@ class LeproLedLight(LightEntity):
                 pass
             return
 
+        # B-series: handle color temperature mode
+        if self.is_b_model and ATTR_COLOR_TEMP_KELVIN in kwargs:
+            kelvin = kwargs[ATTR_COLOR_TEMP_KELVIN]
+            brightness = kwargs.get(ATTR_BRIGHTNESS, self._brightness)
+            d4 = self._kelvin_to_d4(kelvin)
+            d3 = self._map_ha_brightness(brightness)
+            self._is_on = True
+            self._brightness = brightness
+            self._attr_color_temp_kelvin = kelvin
+            self._attr_color_mode = ColorMode.COLOR_TEMP
+            self._mode = 0
+            await self._send_mqtt_command({"d1": 1, "d2": 0, "d3": d3, "d4": d4})
+            self.async_write_ha_state()
+            return
+
         # Determine new values from kwargs
         brightness = kwargs.get(ATTR_BRIGHTNESS, self._brightness)
         rgb_color = kwargs.get(ATTR_RGB_COLOR, self._attr_rgb_color)
@@ -497,6 +535,8 @@ class LeproLedLight(LightEntity):
         # When color changes on the main light, set all segments to the same color
         if requested_rgb_change:
             self._attr_rgb_color = rgb_color
+            if self.is_b_model:
+                self._attr_color_mode = ColorMode.RGB
             if not self.is_b_model:
                 # set all segment colors to the main color
                 self._segment_colors = [tuple(int(c) for c in rgb_color)] * 25
@@ -1242,11 +1282,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
                 entity._update_b1_static_state(data)
                 entity._update_b1_rgb_state(data)
 
+                # B-series: update color temperature from d4 when in static (CCT) mode
+                if entity.is_b_model and entity._mode == 0 and 'd4' in data:
+                    entity._attr_color_temp_kelvin = entity._d4_to_kelvin(data['d4'])
+                    entity._attr_color_mode = ColorMode.COLOR_TEMP
+
                 # Update stored RGB color for B bulbs from d5
                 if entity.is_b_model and "d5" in data and isinstance(data.get("d5"), str):
                     rgb = entity._parse_b_rgb_d5_to_rgb(data["d5"])
                     if rgb:
-                        entity._attr_rgb_color = rgb                
+                        entity._attr_rgb_color = rgb
+                        if entity.is_b_model and entity._mode == 1:
+                            entity._attr_color_mode = ColorMode.RGB                
                 
                 # Update effect and colors
                 if 'd50' in data:
