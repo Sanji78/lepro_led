@@ -242,6 +242,17 @@ class LeproLedLight(LightEntity):
         else:
             self._brightness = 255
 
+        # For devices that start in d2=1 (RGB) mode (e.g. SE1), also parse d5 for colour
+        # and d3 for brightness, since they don't use d52 in that mode.
+        if device.get("d2") == 1 and "d5" in device:
+            rgb = self._parse_b_rgb_d5_to_rgb(device["d5"])
+            if rgb:
+                self._attr_rgb_color = rgb
+                self._segment_colors = [rgb] * 25
+            # d3 holds value (brightness * 1000) in RGB mode for these devices
+            if "d3" in device:
+                self._brightness = self._map_device_brightness(device["d3"])
+
         if "d60" in device:
             sens, parsed_effect = self._parse_d60(device["d60"])
             self._sensitivity = sens
@@ -317,12 +328,22 @@ class LeproLedLight(LightEntity):
     def is_t1_model(self):
         """Return True when the device model/series indicates a T1 bulb."""
         model = str(self._attr_device_info.get("model", "")).upper()
-        return "T1" in model    
-    
+        return "T1" in model
+
+    @property
+    def is_se1_model(self):
+        """Return True for SE1 strips.
+        Despite being a strip, the SE1 uses the B-series d2=1/d5 RGB protocol
+        (confirmed from MQTT logs: getr returns d2=1 and d5, never d50).
+        """
+        model = str(self._attr_device_info.get("model", "")).upper()
+        return "SE1" in model
+
     @property
     def is_b_model(self):
-        """Return True when the device model indicates any B-series bulb."""
-        return self.is_b1_model or self.is_bc1_model or self.is_b2_model or self.is_b3_model or self.is_t1_model or self.is_bp1_model
+        """Return True when the device uses the B-series d2=1/d5 RGB protocol.
+        Includes B-series bulbs and the SE1 strip (same protocol, confirmed via MQTT logs)."""
+        return self.is_b1_model or self.is_bc1_model or self.is_b2_model or self.is_b3_model or self.is_t1_model or self.is_bp1_model or self.is_se1_model
     
     def _should_skip_d50_for_static_mode(self):
         """Use a reduced payload for B1 bulbs to test whether d50 causes flashing."""
@@ -372,15 +393,24 @@ class LeproLedLight(LightEntity):
             self._b1_rgb_state.update(rgb_state)
 
     def _build_b1_rgb_payload(self, rgb_color, brightness):
-        """Build a B1 RGB payload that matches the official app format."""
-        payload = {"d2": 1}
+        """Build a B1/SE1 RGB payload matching the official app format.
 
+        The d5 field encodes HSV as: HHHH SSSS VVVV (each 4 hex digits, 0-1000 scale).
+        - Hue comes from the chosen colour.
+        - Saturation is always 0x03E8 (1000 = fully saturated).
+        - Value (brightness) comes ONLY from the HA brightness slider, NOT from the
+          colour's HSV 'value' component.  Mixing the two caused: (a) muted/dark colours
+          sent with near-zero val, making the strip appear very dim regardless of the
+          brightness slider; (b) the colour wheel pointer jumping to the outer edge when
+          HA read the low-val d5 back and decoded it as a near-black colour.
+        """
+        payload = {"d2": 1}
         r, g, b = [int(max(0, min(255, c))) for c in rgb_color]
-        hue, sat, val = colorsys.rgb_to_hsv(r / 255, g / 255, b / 255)
+        hue, _sat, _val = colorsys.rgb_to_hsv(r / 255, g / 255, b / 255)
         hue_deg = int(round((hue * 360) % 360))
         brightness_scale = max(0.0, min(1.0, brightness / 255 if brightness is not None else 1.0))
         sat_hex = "03E8"
-        val_int = int(round(val * brightness_scale * 1000))
+        val_int = int(round(brightness_scale * 1000))
         val_hex = f"{val_int:04X}"
         payload["d5"] = f"{hue_deg:04X}{sat_hex}{val_hex}"
         return payload
@@ -413,19 +443,28 @@ class LeproLedLight(LightEntity):
         return 0 + int(ha_brightness * 1000 / 255)
 
     def _parse_b_rgb_d5_to_rgb(self, d5: str) -> tuple[int, int, int] | None:
-        """Parse B-series d5 (HHHH03E8VVVV) into an RGB tuple."""
+        """Parse B-series/SE1 d5 (HHHH SSSS VVVV) into an RGB tuple for UI display.
+
+        In the d5 format the VVVV field encodes brightness (0-1000), NOT the HSV
+        'value' component of the chosen colour.  If we decoded it literally we'd get
+        a near-black RGB when brightness is low, which causes two UI problems:
+          1. HA's colour wheel decodes black as 'no colour' and snaps the pointer to
+             the outer edge of the circle on the next interaction.
+          2. _attr_rgb_color always reads as (255,255,255) after HA normalises black.
+        Fix: reconstruct the display colour at full value (val=1.0) so the hue and
+        saturation are always correctly represented on the wheel regardless of brightness.
+        Brightness itself is tracked separately via _brightness / _attr_brightness.
+        """
         try:
             if not d5 or len(d5) < 12:
                 return None
-    
+
             hue_deg = int(d5[0:4], 16) % 360
-            sat_int = int(d5[4:8], 16)  # usually 0x03E8
-            val_int = int(d5[8:12], 16)
-    
+            sat_int = int(d5[4:8], 16)
+
             sat = max(0.0, min(1.0, sat_int / 1000.0))
-            val = max(0.0, min(1.0, val_int / 1000.0))
-    
-            r_f, g_f, b_f = colorsys.hsv_to_rgb(hue_deg / 360.0, sat, val)
+            # Use val=1.0 for UI display; actual brightness is in _brightness
+            r_f, g_f, b_f = colorsys.hsv_to_rgb(hue_deg / 360.0, sat, 1.0)
             return (int(round(r_f * 255)), int(round(g_f * 255)), int(round(b_f * 255)))
         except Exception:
             return None    
@@ -470,7 +509,21 @@ class LeproLedLight(LightEntity):
         """Turn on the light with optional parameters."""
         if not kwargs:
             self._is_on = True
-            await self._send_mqtt_command({"d1": 1})
+            if self.is_b_model:
+                # B-series bulbs: a bare d1=1 is sufficient; the bulb remembers its last state.
+                await self._send_mqtt_command({"d1": 1})
+            else:
+                # Strip devices (e.g. SE1): sending only d1=1 leaves the strip without a colour
+                # instruction and it falls back to its built-in RGB cycling demo.
+                # Re-send the last known colour payload so the strip shows the correct colour.
+                self._mode = 2
+                payload = {
+                    "d1": 1,
+                    "d2": 2,
+                    "d52": self._map_ha_brightness(self._brightness),
+                    "d50": self._generate_d50_string(),
+                }
+                await self._send_mqtt_command(payload)
             self.async_write_ha_state()
             try:
                 segments = self.hass.data[DOMAIN][self._entry_id].get('segments', {}).get(self._did, [])
@@ -1273,11 +1326,25 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
                 
                 # Update brightness
                 if entity.is_b_model and entity._mode == 0 and 'd3' in data:
+                    # White/CCT mode: d3 is brightness
+                    entity._brightness = entity._map_device_brightness(data['d3'])
+                    entity._attr_brightness = entity._brightness
+                elif entity.is_b_model and entity._mode == 1 and 'd3' in data:
+                    # RGB mode (e.g. SE1): d3 also carries brightness
                     entity._brightness = entity._map_device_brightness(data['d3'])
                     entity._attr_brightness = entity._brightness
                 elif 'd52' in data:
                     entity._brightness = entity._map_device_brightness(data['d52'])
                     entity._attr_brightness = entity._brightness
+                elif entity.is_b_model and entity._mode == 1 and 'd5' in data and isinstance(data.get('d5'), str):
+                    # SE1 rpt messages in RGB mode only echo d5 back (no d3/d52).
+                    # Extract brightness from the val field (last 4 hex digits of d5).
+                    try:
+                        val_int = int(data['d5'][8:12], 16)
+                        entity._brightness = entity._map_device_brightness(val_int)
+                        entity._attr_brightness = entity._brightness
+                    except Exception:
+                        pass
 
                 entity._update_b1_static_state(data)
                 entity._update_b1_rgb_state(data)
@@ -1293,7 +1360,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
                     if rgb:
                         entity._attr_rgb_color = rgb
                         if entity.is_b_model and entity._mode == 1:
-                            entity._attr_color_mode = ColorMode.RGB                
+                            entity._attr_color_mode = ColorMode.RGB
                 
                 # Update effect and colors
                 if 'd50' in data:
