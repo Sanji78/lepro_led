@@ -271,6 +271,17 @@ class LeproLedLight(LightEntity):
             self._attr_color_temp_kelvin = 4000  # neutral default
             if "d4" in device:
                 self._attr_color_temp_kelvin = self._d4_to_kelvin(device["d4"])
+        elif self.has_cct:
+            # S2-style strip: segmented RGB (d50) plus a real CCT white mode (d2=0/d3/d4)
+            self._attr_supported_color_modes = {ColorMode.RGB, ColorMode.COLOR_TEMP}
+            self._attr_min_color_temp_kelvin = 2700
+            self._attr_max_color_temp_kelvin = 6500
+            self._attr_color_temp_kelvin = 4000  # neutral default
+            if device.get("d2") == 0 and "d4" in device:
+                self._attr_color_mode = ColorMode.COLOR_TEMP
+                self._attr_color_temp_kelvin = self._d4_to_kelvin(device["d4"])
+            else:
+                self._attr_color_mode = ColorMode.RGB
         else:
             self._attr_color_mode = ColorMode.RGB
             self._attr_supported_color_modes = {ColorMode.RGB}
@@ -344,7 +355,22 @@ class LeproLedLight(LightEntity):
         """Return True when the device uses the B-series d2=1/d5 RGB protocol.
         Includes B-series bulbs and the SE1 strip (same protocol, confirmed via MQTT logs)."""
         return self.is_b1_model or self.is_bc1_model or self.is_b2_model or self.is_b3_model or self.is_t1_model or self.is_bp1_model or self.is_se1_model
-    
+
+    @property
+    def is_s2_model(self):
+        """Return True for S2 strips.
+        The S2 is a segmented RGB strip (d2=2/d50, like other strips) that ALSO
+        exposes a real CCT white mode via d2=0/d3(brightness)/d4(color temp) -
+        the same white-mode encoding as the B-series bulbs (confirmed via MQTT logs).
+        """
+        model = str(self._attr_device_info.get("model", "")).upper()
+        return "S2" in model
+
+    @property
+    def has_cct(self):
+        """Return True when the device supports the d2=0/d3/d4 CCT white-mode protocol."""
+        return self.is_b_model or self.is_s2_model
+
     def _should_skip_d50_for_static_mode(self):
         """Use a reduced payload for B1 bulbs to test whether d50 causes flashing."""
         return self.is_b_model and self._effect in (self.EFFECT_NONE, self.EFFECT_SOLID)
@@ -512,6 +538,12 @@ class LeproLedLight(LightEntity):
             if self.is_b_model:
                 # B-series bulbs: a bare d1=1 is sufficient; the bulb remembers its last state.
                 await self._send_mqtt_command({"d1": 1})
+            elif self.has_cct and self._mode == 0:
+                # S2-style strip currently in CCT white mode: resend d2/d3/d4 explicitly,
+                # otherwise a bare d1=1 falls back to the RGB/d50 demo instead of staying white.
+                d3 = self._map_ha_brightness(self._brightness)
+                d4 = self._kelvin_to_d4(getattr(self, "_attr_color_temp_kelvin", 4000))
+                await self._send_mqtt_command({"d1": 1, "d2": 0, "d3": d3, "d4": d4})
             else:
                 # Strip devices (e.g. SE1): sending only d1=1 leaves the strip without a colour
                 # instruction and it falls back to its built-in RGB cycling demo.
@@ -536,8 +568,8 @@ class LeproLedLight(LightEntity):
                 pass
             return
 
-        # B-series: handle color temperature mode
-        if self.is_b_model and ATTR_COLOR_TEMP_KELVIN in kwargs:
+        # B-series / S2-style CCT strips: handle color temperature mode
+        if self.has_cct and ATTR_COLOR_TEMP_KELVIN in kwargs:
             kelvin = kwargs[ATTR_COLOR_TEMP_KELVIN]
             brightness = kwargs.get(ATTR_BRIGHTNESS, self._brightness)
             d4 = self._kelvin_to_d4(kelvin)
@@ -588,7 +620,7 @@ class LeproLedLight(LightEntity):
         # When color changes on the main light, set all segments to the same color
         if requested_rgb_change:
             self._attr_rgb_color = rgb_color
-            if self.is_b_model:
+            if self.has_cct:
                 self._attr_color_mode = ColorMode.RGB
             if not self.is_b_model:
                 # set all segment colors to the main color
@@ -1325,7 +1357,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
                     entity._mode = data['d2']
                 
                 # Update brightness
-                if entity.is_b_model and entity._mode == 0 and 'd3' in data:
+                if entity.has_cct and entity._mode == 0 and 'd3' in data:
                     # White/CCT mode: d3 is brightness
                     entity._brightness = entity._map_device_brightness(data['d3'])
                     entity._attr_brightness = entity._brightness
@@ -1349,10 +1381,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
                 entity._update_b1_static_state(data)
                 entity._update_b1_rgb_state(data)
 
-                # B-series: update color temperature from d4 when in static (CCT) mode
-                if entity.is_b_model and entity._mode == 0 and 'd4' in data:
+                # B-series / S2-style CCT strips: update color temperature from d4 when in static (CCT) mode
+                if entity.has_cct and entity._mode == 0 and 'd4' in data:
                     entity._attr_color_temp_kelvin = entity._d4_to_kelvin(data['d4'])
                     entity._attr_color_mode = ColorMode.COLOR_TEMP
+                elif entity.has_cct and entity._mode in (2, 3) and 'd2' in data:
+                    # Device switched (e.g. from the official app) into RGB/effect mode.
+                    entity._attr_color_mode = ColorMode.RGB
 
                 # Update stored RGB color for B bulbs from d5
                 if entity.is_b_model and "d5" in data and isinstance(data.get("d5"), str):
