@@ -319,6 +319,12 @@ class LeproLedLight(LightEntity):
         return "B2" in model
         
     @property
+    def is_bg1_model(self):
+        """Return True when the device model/series indicates a BG1 bulb."""
+        model = str(self._attr_device_info.get("model", "")).upper()
+        return "BG1" in model
+
+    @property
     def is_b3_model(self):
         """Return True when the device model/series indicates a B3 bulb."""
         model = str(self._attr_device_info.get("model", "")).upper()
@@ -343,7 +349,7 @@ class LeproLedLight(LightEntity):
     def is_b_model(self):
         """Return True when the device uses the B-series d2=1/d5 RGB protocol.
         Includes B-series bulbs and the SE1 strip (same protocol, confirmed via MQTT logs)."""
-        return self.is_b1_model or self.is_bc1_model or self.is_b2_model or self.is_b3_model or self.is_t1_model or self.is_bp1_model or self.is_se1_model
+        return self.is_b1_model or self.is_bc1_model or self.is_b2_model or self.is_b3_model or self.is_bg1_model or self.is_t1_model or self.is_bp1_model or self.is_se1_model
     
     def _should_skip_d50_for_static_mode(self):
         """Use a reduced payload for B1 bulbs to test whether d50 causes flashing."""
