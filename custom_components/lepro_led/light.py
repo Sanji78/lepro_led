@@ -330,6 +330,12 @@ class LeproLedLight(LightEntity):
         return "B2" in model
         
     @property
+    def is_bg1_model(self):
+        """Return True when the device model/series indicates a BG1 bulb."""
+        model = str(self._attr_device_info.get("model", "")).upper()
+        return "BG1" in model
+
+    @property
     def is_b3_model(self):
         """Return True when the device model/series indicates a B3 bulb."""
         model = str(self._attr_device_info.get("model", "")).upper()
@@ -371,6 +377,8 @@ class LeproLedLight(LightEntity):
         """Return True when the device supports the d2=0/d3/d4 CCT white-mode protocol."""
         return self.is_b_model or self.is_s2_model
 
+        return self.is_b1_model or self.is_bc1_model or self.is_b2_model or self.is_b3_model or self.is_bg1_model or self.is_t1_model or self.is_bp1_model or self.is_se1_model
+    
     def _should_skip_d50_for_static_mode(self):
         """Use a reduced payload for B1 bulbs to test whether d50 causes flashing."""
         return self.is_b_model and self._effect in (self.EFFECT_NONE, self.EFFECT_SOLID)
