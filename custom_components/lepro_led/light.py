@@ -591,6 +591,34 @@ class LeproLedLight(LightEntity):
             self.async_write_ha_state()
             return
 
+
+        # BP1 only: keep brightness-only commands in white/CCT mode.
+        # The generic static/effect path may replay cached fields (including d30)
+        # rather than the direct d2/d3/d4 payload used by colour-temperature changes.
+        if (
+            self.is_bp1_model
+            and self._mode == 0
+            and ATTR_BRIGHTNESS in kwargs
+            and ATTR_RGB_COLOR not in kwargs
+            and ATTR_COLOR_TEMP_KELVIN not in kwargs
+            and ATTR_EFFECT not in kwargs
+        ):
+            brightness = kwargs[ATTR_BRIGHTNESS]
+            self._is_on = True
+            self._brightness = brightness
+            self._attr_brightness = brightness
+            self._attr_color_mode = ColorMode.COLOR_TEMP
+            kelvin = self._attr_color_temp_kelvin or 4000
+            await self._send_mqtt_command({
+                "d1": 1,
+                "d2": 0,
+                "d3": self._map_ha_brightness(brightness),
+                "d4": self._kelvin_to_d4(kelvin),
+            })
+            self.async_write_ha_state()
+            return
+
+
         # Determine new values from kwargs
         brightness = kwargs.get(ATTR_BRIGHTNESS, self._brightness)
         rgb_color = kwargs.get(ATTR_RGB_COLOR, self._attr_rgb_color)
