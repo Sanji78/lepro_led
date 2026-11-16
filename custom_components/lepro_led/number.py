@@ -96,7 +96,7 @@ class LeproSensitivityNumber(NumberEntity):
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback):
     """Set up number entities for Lepro LED speeds."""
     # Wait a short while for light platform to populate hass.data, but keep attempts limited.
-    attempts = 6
+    attempts = 100
     for attempt in range(attempts):
         data = hass.data.get(DOMAIN, {}).get(entry.entry_id)
         if data and "entities" in data:
