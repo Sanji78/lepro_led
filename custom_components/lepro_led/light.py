@@ -137,16 +137,31 @@ async def async_login(session, account, password, mac, login_url, api_host, lang
         "User-Agent": "LE/1.0.9.202 (Custom Integration)",
     }
 
-    async with session.post(login_url, json=payload, headers=headers) as resp:
-        if resp.status != 200:
-            _LOGGER.error("Login failed with status %s: %s", resp.status, (await resp.text())[:300])
-            return None
-        data = await resp.json()
-        if data.get("code") != 0:
-            _LOGGER.error("Login failed with message: %s", data.get("msg"))
-            return None
-        token = data.get("data", {}).get("token")
-        return token
+    # Lepro throttles frequent logins (code -905): retry a few times with increasing delays
+    retry_delays = (5, 10, 20)
+    for attempt in range(len(retry_delays) + 1):
+        async with session.post(login_url, json=payload, headers=headers) as resp:
+            if resp.status == 200:
+                data = await resp.json()
+                if data.get("code") == 0:
+                    return data.get("data", {}).get("token")
+                throttled = data.get("code") == -905
+                reason = "message: %s" % data.get("msg")
+            else:
+                body = (await resp.text())[:300]
+                throttled = "-905" in body
+                reason = "status %s: %s" % (resp.status, body)
+        if throttled and attempt < len(retry_delays):
+            delay = retry_delays[attempt]
+            _LOGGER.warning("Lepro login throttled (-905), retrying in %s s (attempt %s/%s)", delay, attempt + 1, len(retry_delays))
+            await asyncio.sleep(delay)
+            new_ts = str(int(time.time()))
+            payload["timestamp"] = new_ts
+            headers["Timestamp"] = new_ts
+            continue
+        _LOGGER.error("Login failed with %s", reason)
+        return None
+    return None
 
 
 class LeproLedLight(LightEntity):
