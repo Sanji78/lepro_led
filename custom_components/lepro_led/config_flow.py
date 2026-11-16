@@ -108,6 +108,8 @@ class LeproLedConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             if found_region:
                 data["region"] = found_region
+                # Lepro rejects a second identical login in the same second: wait before entry setup logs in again
+                await asyncio.sleep(3)
                 return self.async_create_entry(title="Lepro LED", data=data)
             if "base" not in errors:
                 errors["base"] = "invalid_auth" if had_response else "cannot_connect"
