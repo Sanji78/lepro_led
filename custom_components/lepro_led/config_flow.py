@@ -1,7 +1,12 @@
 from homeassistant import config_entries
 from homeassistant.helpers import selector
 import voluptuous as vol
-from .const import DOMAIN, REGIONS
+import asyncio
+import time
+import hashlib
+import aiohttp
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from .const import DOMAIN, REGIONS, LOGIN_PATH
 
 REGION_OPTIONS = [
     selector.SelectOptionDict(value="eu", label="Europe"),
@@ -43,7 +48,62 @@ class LeproLedConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data = dict(user_input)
             
             # Don't include persistent_mac here - it will be generated later
-            return self.async_create_entry(title="Lepro LED", data=data)
+            session = async_get_clientsession(self.hass)
+            account = data["account"]
+            language = data.get("language", "en")
+            mac_hash = hashlib.md5(account.encode()).hexdigest()
+            mac = f"02:{mac_hash[0:2]}:{mac_hash[2:4]}:{mac_hash[4:6]}:{mac_hash[6:8]}:{mac_hash[8:10]}"
+            fcm_token = "dfi8s76mRTCxRxm3UtNp2z:APA91bHWMEWKT9CgNfGJ961jot2qgfYdWePbO5sQLovSFDI7U_H-ulJiqIAB2dpZUUrhzUNWR3OE_eM83i9IDLk1a5ZRwHDxMA_TnGqdpE8H-0_JML8pBFA"
+
+            from .light import async_login
+
+            # Candidate regions: the one picked in the form first, then the others
+            candidates = [data.get("region", "eu")]
+            candidates += [r for r in REGIONS if r not in candidates]
+
+            # Ask Lepro which region the account belongs to (same bootstrap call used by the official app)
+            try:
+                ts = str(int(time.time()))
+                async with session.post(
+                    "https://api-iot.lepro.com/user/region",
+                    data={"account": account, "timestamp": ts},
+                    headers={"Platform": "2", "Timestamp": ts, "Language": language, "Slanguage": language, "User-Agent": "LE/1.0.9.202 (Custom Integration)"},
+                    timeout=aiohttp.ClientTimeout(total=15),
+                ) as resp:
+                    region_json = await resp.json(content_type=None)
+                api_host_found = (region_json.get("data") or {}).get("apiHost")
+                for r, h in REGIONS.items():
+                    if h == api_host_found:
+                        candidates = [r] + [c for c in candidates if c != r]
+                        break
+            except Exception:
+                pass
+
+            token = None
+            found_region = None
+            had_network_error = False
+            for region in candidates:
+                api_host = REGIONS[region]
+                try:
+                    token = await async_login(
+                        session, account, data["password"], mac,
+                        f"https://{api_host}{LOGIN_PATH}", api_host, language, fcm_token,
+                    )
+                except (aiohttp.ClientError, asyncio.TimeoutError):
+                    had_network_error = True
+                    continue
+                except Exception:
+                    errors["base"] = "unknown"
+                    break
+                if token:
+                    found_region = region
+                    break
+
+            if found_region:
+                data["region"] = found_region
+                return self.async_create_entry(title="Lepro LED", data=data)
+            if "base" not in errors:
+                errors["base"] = "cannot_connect" if had_network_error else "invalid_auth"
 
         return self.async_show_form(
             step_id="user", data_schema=DATA_SCHEMA, errors=errors
