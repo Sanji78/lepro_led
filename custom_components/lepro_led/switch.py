@@ -58,7 +58,7 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ):
     """Set up power-only switch entities for Lepro devices."""
-    attempts = 6
+    attempts = 100
     for _ in range(attempts):
         data = hass.data.get(DOMAIN, {}).get(entry.entry_id)
         if data and "entities" in data:
