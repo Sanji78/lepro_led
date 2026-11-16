@@ -139,7 +139,7 @@ async def async_login(session, account, password, mac, login_url, api_host, lang
 
     async with session.post(login_url, json=payload, headers=headers) as resp:
         if resp.status != 200:
-            _LOGGER.error("Login failed with status %s", resp.status)
+            _LOGGER.error("Login failed with status %s: %s", resp.status, (await resp.text())[:300])
             return None
         data = await resp.json()
         if data.get("code") != 0:
