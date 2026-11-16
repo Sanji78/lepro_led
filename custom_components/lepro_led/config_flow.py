@@ -7,6 +7,9 @@ import hashlib
 import aiohttp
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from .const import DOMAIN, REGIONS, LOGIN_PATH
+import logging
+
+_LOGGER = logging.getLogger(__name__)
 
 REGION_OPTIONS = [
     selector.SelectOptionDict(value="eu", label="Europe"),
@@ -81,7 +84,8 @@ class LeproLedConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             token = None
             found_region = None
-            had_network_error = False
+            had_response = False
+            _LOGGER.debug("Lepro config flow: region candidates order: %s", candidates)
             for region in candidates:
                 api_host = REGIONS[region]
                 try:
@@ -89,12 +93,15 @@ class LeproLedConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         session, account, data["password"], mac,
                         f"https://{api_host}{LOGIN_PATH}", api_host, language, fcm_token,
                     )
-                except (aiohttp.ClientError, asyncio.TimeoutError):
-                    had_network_error = True
+                except (aiohttp.ClientError, asyncio.TimeoutError) as err:
+                    _LOGGER.warning("Lepro config flow: region %s (%s) not reachable: %s", region, api_host, err)
                     continue
                 except Exception:
+                    _LOGGER.exception("Lepro config flow: unexpected error on region %s", region)
                     errors["base"] = "unknown"
                     break
+                had_response = True
+                _LOGGER.debug("Lepro config flow: region %s login ok=%s", region, bool(token))
                 if token:
                     found_region = region
                     break
@@ -103,7 +110,7 @@ class LeproLedConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 data["region"] = found_region
                 return self.async_create_entry(title="Lepro LED", data=data)
             if "base" not in errors:
-                errors["base"] = "cannot_connect" if had_network_error else "invalid_auth"
+                errors["base"] = "invalid_auth" if had_response else "cannot_connect"
 
         return self.async_show_form(
             step_id="user", data_schema=DATA_SCHEMA, errors=errors
