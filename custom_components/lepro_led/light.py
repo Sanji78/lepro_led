@@ -42,6 +42,7 @@ class MQTTClientWrapper:
         self.client = None
         self._message_callback = None
         self._loop_task = None
+        self._all_subscriptions = []
         self._pending_subscriptions = []
         self._pending_messages = []
 
@@ -56,8 +57,8 @@ class MQTTClientWrapper:
             ) as client:
                 self.client = client
                 
-                # Process pending subscriptions
-                for topic in self._pending_subscriptions:
+                # Subscribe to every known topic (also after a reconnect)
+                for topic in self._all_subscriptions:
                     await client.subscribe(topic)
                 self._pending_subscriptions = []
                 
@@ -75,15 +76,22 @@ class MQTTClientWrapper:
         finally:
             self.client = None
 
+    async def _run_forever(self):
+        """Keep the MQTT connection alive: reconnect after a drop."""
+        while True:
+            await self._connect_and_run()
+            _LOGGER.warning("MQTT connection closed, reconnecting in 5 s")
+            await asyncio.sleep(5)
+
     async def connect(self):
         if self._loop_task and not self._loop_task.done():
             return
             
-        self._pending_subscriptions = []
-        self._pending_messages = []
-        self._loop_task = asyncio.create_task(self._connect_and_run())
+        self._loop_task = asyncio.create_task(self._run_forever())
 
     async def subscribe(self, topic):
+        if topic not in self._all_subscriptions:
+            self._all_subscriptions.append(topic)
         if self.client:
             await self.client.subscribe(topic)
         else:
@@ -910,7 +918,7 @@ class LeproLedLight(LightEntity):
                 pass
 
         except Exception as e:
-            _LOGGER.error("Error parsing d50: %s", e)
+            _LOGGER.error("Error parsing d50: %s (d50=%r)", e, d50_str)
             # fallback
             self._segment_colors = [(255, 255, 255)] * 25
             self._attr_rgb_color = (255, 255, 255)
