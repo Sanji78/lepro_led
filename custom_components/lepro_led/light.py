@@ -398,7 +398,12 @@ class LeproLedLight(LightEntity):
     @property
     def has_cct(self):
         """Return True when the device supports the d2=0/d3/d4 CCT white-mode protocol."""
-        return self.is_b_model or self.is_s2_model
+        return self.is_b_model or self.is_s2_model or self.is_oe1_model
+        
+    @property
+    def is_oe1_model(self):
+        """OE1 floor lamp: segmented RGB (d50) plus the S2-style CCT white mode (d2=0/d3/d4), confirmed via MQTT logs."""
+        return "OE1" in str(self._attr_device_info.get("model", "")).upper()
 
         return self.is_b1_model or self.is_bc1_model or self.is_b2_model or self.is_b3_model or self.is_bg1_model or self.is_t1_model or self.is_bp1_model or self.is_se1_model
     
